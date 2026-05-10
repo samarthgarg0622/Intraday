@@ -35,10 +35,10 @@ _AUTHORIZED_CHAT_ID = str(TELEGRAM_CHAT_ID).strip().strip('"').strip("'")
 
 HELP_TEXT = (
     "*Trader Assistant — On-Demand*\n\n"
-    "/brief — run night brief now (text)\n"
-    "/brief\\_png — run night brief now (PNG image)\n"
+    "/brief — run night brief now (PNG image + full text)\n"
+    "/brief\\_png — PNG image only (no text follow-up)\n"
     "/night — same as /brief\n"
-    "/morning — run morning brief now\n"
+    "/morning — run morning brief now (PNG + full text)\n"
     "/ping — health check\n"
     "/help — this message\n\n"
     "_Scheduled runs continue automatically:_\n"
