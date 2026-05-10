@@ -61,6 +61,34 @@ def _split_message(text: str, limit: int = 4000) -> list:
     return chunks
 
 
+def send_photo(photo_bytes: bytes, caption: str = "",
+               parse_mode: str = "Markdown",
+               filename: str = "brief.png") -> bool:
+    """
+    Sends a photo to your Telegram chat.
+    Caption max length is 1024 chars (Telegram limit) — truncated if longer.
+    """
+    try:
+        resp = requests.post(
+            f"{TELEGRAM_API}/sendPhoto",
+            data={
+                "chat_id":    TELEGRAM_CHAT_ID,
+                "caption":    caption[:1024],
+                "parse_mode": parse_mode,
+            },
+            files={"photo": (filename, photo_bytes, "image/png")},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        log.info(f"Telegram photo sent ({len(photo_bytes)} bytes, "
+                 f"caption {len(caption)} chars)")
+        return True
+
+    except requests.exceptions.RequestException as e:
+        log.error(f"Failed to send Telegram photo: {e}")
+        return False
+
+
 def test_connection() -> bool:
     """Sends a test message to verify bot token and chat ID are correct."""
     return send_message(

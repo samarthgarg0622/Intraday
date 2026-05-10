@@ -24,6 +24,9 @@ from telegram.ext import (
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from night_job import run_night_job
 from morning_job import run_morning_job
+from screener import run_screener
+from brief_renderer import render_night_brief_png, build_short_caption
+from telegram_sender import send_photo
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +35,8 @@ _AUTHORIZED_CHAT_ID = str(TELEGRAM_CHAT_ID).strip().strip('"').strip("'")
 
 HELP_TEXT = (
     "*Trader Assistant — On-Demand*\n\n"
-    "/brief — run night brief now\n"
+    "/brief — run night brief now (text)\n"
+    "/brief\\_png — run night brief now (PNG image)\n"
     "/night — same as /brief\n"
     "/morning — run morning brief now\n"
     "/ping — health check\n"
@@ -88,6 +92,22 @@ async def night_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _run_blocking(run_night_job)
 
 
+def _run_brief_png():
+    """Blocking: screener → render PNG → send via Telegram."""
+    watchlist = run_screener()
+    png_bytes = render_night_brief_png(watchlist)
+    caption   = build_short_caption(watchlist)
+    send_photo(png_bytes, caption=caption)
+
+
+async def brief_png_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    log.info("/brief_png received from chat_id=%s", _incoming_chat_id(update))
+    if not _is_authorized(update):
+        return
+    await update.message.reply_text("⏳ Building PNG brief — usually ~1–2 min…")
+    await _run_blocking(_run_brief_png)
+
+
 async def morning_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log.info("/morning received from chat_id=%s", _incoming_chat_id(update))
     if not _is_authorized(update):
@@ -108,6 +128,7 @@ def build_application() -> Application:
     app.add_handler(CommandHandler(["start", "help"], help_cmd))
     app.add_handler(CommandHandler("ping", ping_cmd))
     app.add_handler(CommandHandler(["brief", "night"], night_cmd))
+    app.add_handler(CommandHandler("brief_png", brief_png_cmd))
     app.add_handler(CommandHandler("morning", morning_cmd))
     # Catch-all so we can confirm messages are reaching the bot
     app.add_handler(MessageHandler(filters.ALL, log_any))
