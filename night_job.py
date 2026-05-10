@@ -8,7 +8,8 @@
 import logging
 from screener import run_screener
 from alert_formatter import format_night_brief, format_error_alert
-from telegram_sender import send_message
+from brief_renderer import render_night_brief_png, build_short_caption
+from telegram_sender import send_message, send_photo
 from state import save_night_state
 
 log = logging.getLogger(__name__)
@@ -22,16 +23,19 @@ def run_night_job():
         watchlist = run_screener()
         log.info(f"Screener returned {len(watchlist)} stocks")
 
-        # Save state for morning comparison
         save_night_state(watchlist)
 
-        message = format_night_brief(watchlist)
-        success = send_message(message)
+        png     = render_night_brief_png(watchlist)
+        caption = build_short_caption(watchlist, title="Night brief")
+        text    = format_night_brief(watchlist)
 
-        if success:
-            log.info("✅ Night brief sent successfully")
+        photo_ok = send_photo(png, caption=caption)
+        text_ok  = send_message(text)
+
+        if photo_ok and text_ok:
+            log.info("✅ Night brief sent (PNG + text)")
         else:
-            log.error("❌ Failed to send night brief")
+            log.error(f"❌ Night brief partial failure (photo={photo_ok}, text={text_ok})")
 
     except Exception as e:
         log.error(f"Night job failed: {e}", exc_info=True)
