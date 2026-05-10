@@ -1,9 +1,8 @@
-yfinance==0.2.40
-pandas==2.2.2
-numpy==1.26.4
-requests==2.31.0
+yfinance
+pandas
+numpy
+requests
 python-telegram-bot==20.7
 apscheduler==3.10.4
-pytz==2024.1
-python-dotenv==1.0.1
-nsepython==2.0
+pytz
+python-dotenv
