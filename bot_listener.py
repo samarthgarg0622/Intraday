@@ -13,13 +13,22 @@ import asyncio
 import logging
 
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from night_job import run_night_job
 from morning_job import run_morning_job
 
 log = logging.getLogger(__name__)
+
+# Strip whitespace/quotes that sometimes sneak into env vars
+_AUTHORIZED_CHAT_ID = str(TELEGRAM_CHAT_ID).strip().strip('"').strip("'")
 
 HELP_TEXT = (
     "*Trader Assistant — On-Demand*\n\n"
@@ -33,18 +42,34 @@ HELP_TEXT = (
 )
 
 
+def _incoming_chat_id(update: Update) -> str | None:
+    if update.effective_chat is None:
+        return None
+    return str(update.effective_chat.id)
+
+
 def _is_authorized(update: Update) -> bool:
-    return update.effective_chat is not None and \
-           str(update.effective_chat.id) == str(TELEGRAM_CHAT_ID)
+    incoming = _incoming_chat_id(update)
+    if incoming is None:
+        return False
+    ok = incoming == _AUTHORIZED_CHAT_ID
+    if not ok:
+        log.warning(
+            "Unauthorized update — incoming chat_id=%r, expected=%r",
+            incoming, _AUTHORIZED_CHAT_ID,
+        )
+    return ok
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    log.info("/help received from chat_id=%s", _incoming_chat_id(update))
     if not _is_authorized(update):
         return
     await update.message.reply_markdown(HELP_TEXT)
 
 
 async def ping_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    log.info("/ping received from chat_id=%s", _incoming_chat_id(update))
     if not _is_authorized(update):
         return
     await update.message.reply_text("pong ✅")
@@ -56,25 +81,34 @@ async def _run_blocking(fn):
 
 
 async def night_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    log.info("/brief received from chat_id=%s", _incoming_chat_id(update))
     if not _is_authorized(update):
         return
     await update.message.reply_text("⏳ Running night brief — usually ~1–2 min…")
-    log.info("On-demand /brief triggered")
     await _run_blocking(run_night_job)
 
 
 async def morning_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    log.info("/morning received from chat_id=%s", _incoming_chat_id(update))
     if not _is_authorized(update):
         return
     await update.message.reply_text("⏳ Running morning brief — usually ~1–2 min…")
-    log.info("On-demand /morning triggered")
     await _run_blocking(run_morning_job)
 
 
+async def log_any(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Logs every incoming message that wasn't caught by a command handler."""
+    msg = update.message.text if update.message else None
+    log.info("Update — chat_id=%s text=%r", _incoming_chat_id(update), msg)
+
+
 def build_application() -> Application:
+    log.info("Bot listener starting. Authorized chat_id=%r", _AUTHORIZED_CHAT_ID)
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler(["start", "help"], help_cmd))
     app.add_handler(CommandHandler("ping", ping_cmd))
     app.add_handler(CommandHandler(["brief", "night"], night_cmd))
     app.add_handler(CommandHandler("morning", morning_cmd))
+    # Catch-all so we can confirm messages are reaching the bot
+    app.add_handler(MessageHandler(filters.ALL, log_any))
     return app
