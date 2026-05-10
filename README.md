@@ -98,6 +98,21 @@ To add/remove stocks from the universe, edit `STOCK_UNIVERSE` in `config.py`.
 
 ---
 
+## On-Demand Briefs (from Telegram)
+
+Once `scheduler.py` is running (locally or on Railway), send any of these
+commands to your bot in Telegram to get a brief immediately:
+
+| Command | What it does |
+|---|---|
+| `/brief` | Run the night screener + brief right now |
+| `/night` | Same as `/brief` |
+| `/morning` | Run the morning brief right now |
+| `/ping` | Health check — bot replies `pong ✅` |
+| `/help` | List available commands |
+
+Only the `TELEGRAM_CHAT_ID` configured in env vars is allowed to trigger jobs.
+
 ## Running Jobs Manually
 
 ```bash
@@ -107,7 +122,7 @@ python night_job.py
 # Run just the morning job right now
 python morning_job.py
 
-# Start the full scheduler (runs continuously)
+# Start the full scheduler + on-demand bot (runs continuously)
 python scheduler.py
 ```
 

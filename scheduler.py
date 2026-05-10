@@ -1,18 +1,20 @@
 # scheduler.py
 # ─────────────────────────────────────────────────────────────
-# Main entry point. Runs the APScheduler with IST timezone.
-# Weekdays only: Night job 8PM, Morning job 8:45AM
-# Deploy this on Railway — it runs 24/7.
+# Main entry point. Runs APScheduler (background) + a Telegram
+# bot listener (foreground) so you can also request briefs on
+# demand by sending /brief in chat.
+# Weekdays only: Night job 8 PM, Morning job 8:45 AM, IST.
+# Deploy this on Railway — runs 24/7.
 # ─────────────────────────────────────────────────────────────
 
 import logging
-import time
 import pytz
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from night_job import run_night_job
 from morning_job import run_morning_job
+from bot_listener import build_application
 from config import (
     NIGHT_JOB_HOUR, NIGHT_JOB_MINUTE,
     MORNING_JOB_HOUR, MORNING_JOB_MINUTE,
@@ -28,7 +30,7 @@ IST = pytz.timezone("Asia/Kolkata")
 
 
 def main():
-    scheduler = BlockingScheduler(timezone=IST)
+    scheduler = BackgroundScheduler(timezone=IST)
 
     # ── Night Job: Mon–Fri at 8:00 PM IST ─────────────────────
     scheduler.add_job(
@@ -41,7 +43,7 @@ def main():
         ),
         id="night_job",
         name="Nightly Watchlist & Levels",
-        misfire_grace_time=300,   # Allow 5 min late start
+        misfire_grace_time=300,
     )
 
     # ── Morning Job: Mon–Fri at 8:45 AM IST ───────────────────
@@ -58,16 +60,22 @@ def main():
         misfire_grace_time=300,
     )
 
+    scheduler.start()
+
     log.info("=" * 55)
     log.info("  TRADER ASSISTANT SCHEDULER STARTED")
     log.info(f"  Night brief:   Mon–Fri at {NIGHT_JOB_HOUR:02d}:{NIGHT_JOB_MINUTE:02d} IST")
     log.info(f"  Morning brief: Mon–Fri at {MORNING_JOB_HOUR:02d}:{MORNING_JOB_MINUTE:02d} IST")
+    log.info("  On-demand: send /brief, /morning, /help in Telegram")
     log.info("=" * 55)
 
     try:
-        scheduler.start()
+        app = build_application()
+        app.run_polling(allowed_updates=["message"])
     except (KeyboardInterrupt, SystemExit):
-        log.info("Scheduler stopped.")
+        log.info("Shutting down…")
+    finally:
+        scheduler.shutdown(wait=False)
 
 
 if __name__ == "__main__":
