@@ -66,7 +66,7 @@ def fetch_nse_volume_gainers() -> list[dict]:
 
 def _row_volume_lakhs(row: dict) -> float:
     """Today's traded quantity, in lakhs (1 lakh = 100,000 shares)."""
-    qty = row.get("todaysVolume") or row.get("totalTradedVolume") or 0
+    qty = row.get("volume") or row.get("todaysVolume") or row.get("totalTradedVolume") or 0
     try:
         return float(qty) / 1e5
     except (TypeError, ValueError):
@@ -76,9 +76,9 @@ def _row_volume_lakhs(row: dict) -> float:
 def _row_value_cr(row: dict) -> float:
     """Today's traded value, in ₹ crore. NSE turnover is reported in lakhs."""
     turnover_lakhs = (
-        row.get("todaysTurnover")
+        row.get("turnover")
+        or row.get("todaysTurnover")
         or row.get("totalTradedValue")
-        or row.get("turnover")
         or 0
     )
     try:
@@ -89,14 +89,15 @@ def _row_value_cr(row: dict) -> float:
 
 def _row_vol_ratio(row: dict) -> float:
     """Today's volume / weekly average volume."""
-    v = row.get("volumeGainTimes")
-    if v is not None:
-        try:
-            return float(v)
-        except (TypeError, ValueError):
-            pass
-    today = row.get("todaysVolume") or 0
-    avg   = row.get("weekAvgVolume") or row.get("avgWeeklyVolume") or 0
+    for key in ("week1volChange", "volumeGainTimes"):
+        v = row.get(key)
+        if v is not None:
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                continue
+    today = row.get("volume") or row.get("todaysVolume") or 0
+    avg   = row.get("week1AvgVolume") or row.get("weekAvgVolume") or 0
     try:
         today, avg = float(today), float(avg)
         return round(today / avg, 2) if avg else 0.0
@@ -105,7 +106,7 @@ def _row_vol_ratio(row: dict) -> float:
 
 
 def _row_change_pct(row: dict) -> float:
-    for key in ("netPrice", "pChange", "perChange", "change_pct"):
+    for key in ("pChange", "netPrice", "perChange", "change_pct"):
         v = row.get(key)
         if v is not None:
             try:
