@@ -28,6 +28,13 @@ SR_LOOKBACK_DAYS    = 60        # Days to look back for S/R zones
 SR_ZONE_TOLERANCE   = 0.5       # % tolerance to cluster nearby levels
 EMA_PERIOD          = 20        # EMA period (20-day)
 
+# ── Momentum / Volume-Gainer Scan ─────────────────────────────
+# Used by momentum_job.py + /momentum command.
+MOMENTUM_MIN_VOLUME_LAKHS = 5      # min today's traded qty (lakhs of shares)
+MOMENTUM_MIN_VALUE_CR     = 10     # min today's traded value (₹ crore)
+MOMENTUM_MIN_VOL_RATIO    = 2.0    # today's volume must be Nx the weekly avg
+MOMENTUM_TOP_N            = 5      # how many gainers to report
+
 # ── Capital & Risk ───────────────────────────────────────────
 CAPITAL             = 100000  # Your total trading capital in ₹ — UPDATE THIS
 MAX_RISK_PER_TRADE  = 0.015   # Max 1.5% of capital at risk per trade

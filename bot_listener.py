@@ -24,6 +24,7 @@ from telegram.ext import (
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from night_job import run_night_job
 from morning_job import run_morning_job
+from momentum_job import run_momentum_job
 from screener import run_screener
 from brief_renderer import render_night_brief_png, build_short_caption
 from telegram_sender import send_photo
@@ -39,6 +40,7 @@ HELP_TEXT = (
     "/brief\\_png — PNG image only (no text follow-up)\n"
     "/night — same as /brief\n"
     "/morning — run morning brief now (PNG + full text)\n"
+    "/momentum — NSE volume-gainer scan with news + levels\n"
     "/ping — health check\n"
     "/help — this message\n\n"
     "_Scheduled runs continue automatically:_\n"
@@ -116,6 +118,14 @@ async def morning_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _run_blocking(run_morning_job)
 
 
+async def momentum_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    log.info("/momentum received from chat_id=%s", _incoming_chat_id(update))
+    if not _is_authorized(update):
+        return
+    await update.message.reply_text("⏳ Scanning NSE volume gainers — usually ~1–2 min…")
+    await _run_blocking(run_momentum_job)
+
+
 async def log_any(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Logs every incoming message that wasn't caught by a command handler."""
     msg = update.message.text if update.message else None
@@ -130,6 +140,7 @@ def build_application() -> Application:
     app.add_handler(CommandHandler(["brief", "night"], night_cmd))
     app.add_handler(CommandHandler("brief_png", brief_png_cmd))
     app.add_handler(CommandHandler("morning", morning_cmd))
+    app.add_handler(CommandHandler("momentum", momentum_cmd))
     # Catch-all so we can confirm messages are reaching the bot
     app.add_handler(MessageHandler(filters.ALL, log_any))
     return app
